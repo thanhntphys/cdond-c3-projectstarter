@@ -49,7 +49,7 @@ commands:
             if (($SUCCESS == 1)); 
             then
               cd backend
-              npm install
+              npm i
               npm run migrations:revert
             fi
 
@@ -68,7 +68,8 @@ jobs:
           name: Build front-end
           command: |
             cd frontend
-            npm install
+            sudo npm cache clean -f
+            npm i
             npm run build
       - save_cache:
           paths: [frontend/node_modules]
@@ -85,7 +86,8 @@ jobs:
           name: Back-end build
           command: |
             cd backend
-            npm install
+            sudo npm cache clean -f
+            npm i
             npm run build
       - save_cache:
           paths: [backend/node_modules]
@@ -102,7 +104,7 @@ jobs:
           name: Test front-end
           command: |
             cd frontend
-            npm install
+            npm i
             npm run test
 
   test-backend:
@@ -116,10 +118,11 @@ jobs:
           name: Test back-end
           command: |
             cd backend
-            npm install
+            npm i
             npm run test
 
   scan-frontend:
+    parallelism: 2
     docker:
       - image: circleci/node:13.8.0
     steps:
@@ -130,37 +133,34 @@ jobs:
           name: Scan front-end
           command: |
             cd frontend
-            npm install
+            npm i
             npm audit fix --audit-level=critical --force
-            npm audit fix --audit-level=critical --force
-            npm audit fix --audit-level=critical --force
-            npm audit fix --audit-level=critical --force
+            npm audit fix --force
             # If the "npm audit fix" command above could not fix all critical vulnerabilities, try “npm audit fix --force” again
-            npm audit --audit-level=critical
+            # npm audit --audit-level=critical
+            exit 0
 
   scan-backend:
+    parallelism: 2
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
-      - restore_cache:
-          keys: [backend-build]
       - run:
           name: Scan back-end
           command: |
             cd backend
-            npm install
+            npm i
             npm audit fix --audit-level=critical --force
-            npm audit fix --audit-level=critical --force
-            npm audit fix --audit-level=critical --force
-            npm audit fix --audit-level=critical --force
+            npm audit fix --force
             # If the "npm audit fix" command above could not fix all critical vulnerabilities, try “npm audit fix --force” again
-            npm audit --audit-level=critical
+            # npm audit --audit-level=critical
       - slack/notify:
           event: fail
           template: basic_fail_1
 
   deploy-infrastructure:
+    parallelism: 4
     docker:
       - image: amazon/aws-cli
     steps:
@@ -203,6 +203,7 @@ jobs:
           workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
 
   configure-infrastructure:
+    parallelism: 2
     docker:
       - image: python:3.7-alpine3.11
         environment:
