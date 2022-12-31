@@ -24,7 +24,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 9100
           ToPort: 9100
-          CidrIp: 0.0.0.0/0
+          CidrIp: 0.0.0.0/0  
 
   EC2Instance:
     Type: AWS::EC2::Instance
@@ -32,10 +32,10 @@ Resources:
       InstanceType: t2.micro
       SecurityGroups:
         - Ref: InstanceSecurityGroup
-      KeyName: uda-people-prj3 # If you use another key pair name, you should change this value to match.
+      KeyName: udacity # If you use another key pair name, you should change this value to match.
       # If this ami id is not available for you, you can find another (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html)
       # Ubuntu 18 or higher works fine
-      ImageId: ami-058e8127e717f752b 
+      ImageId: ami-04ff9e9b51c1f62ca
       Tags:
         - Key: Name
-          Value: !Sub backend-${ID}
+          Value: !Sub backend-${ID} ### saw you :D 
