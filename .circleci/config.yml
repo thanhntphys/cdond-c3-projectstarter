@@ -321,7 +321,7 @@ jobs:
           keys: [backend-build]
       # Add ssh keys with fingerprint
       - add_ssh_keys:
-          fingerprints: ["19:61:56:53:fa:c6:67:b2:e4:19:74:05:6b:61:4e:6a"]
+          fingerprints: ["b9:e7:c5:92:16:88:63:50:91:e2:30:59:b8:43:59:1c"]
       - attach_workspace:
           at: ~/
       - run:
@@ -401,7 +401,7 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys:
-          fingerprints: ["19:61:56:53:fa:c6:67:b2:e4:19:74:05:6b:61:4e:6a"]
+          fingerprints: ["b9:e7:c5:92:16:88:63:50:91:e2:30:59:b8:43:59:1c"]
       - attach_workspace:
           at: ~/
       - run:
@@ -433,7 +433,7 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys:
-          fingerprints: ["19:61:56:53:fa:c6:67:b2:e4:19:74:05:6b:61:4e:6a"]
+          fingerprints: ["b9:e7:c5:92:16:88:63:50:91:e2:30:59:b8:43:59:1c"]
       - attach_workspace:
           at: ~/
       - run:
