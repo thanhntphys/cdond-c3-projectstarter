@@ -235,8 +235,8 @@ jobs:
             cat ~/project/.circleci/ansible/inventory.txt
             export ANSIBLE_HOST_KEY_CHECKING=False
             ansible-playbook -i ~/project/.circleci/ansible/inventory.txt ~/project/.circleci/ansible/configure-server.yml
-      # - destroy-environment:
-      #     workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      - destroy-environment:
+          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
 
   run-migrations:
     docker:
@@ -403,8 +403,7 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys:
-          fingerprints:
-            - "48:3d:fc:8a:7b:f8:a2:4a:65:4e:de:b6:26:a7:2b:01"
+          fingerprints: ["19:61:56:53:fa:c6:67:b2:e4:19:74:05:6b:61:4e:6a"]
       - attach_workspace:
           at: ~/
       - run:
