@@ -241,33 +241,38 @@ jobs:
   run-migrations:
     docker:
       - image: circleci/node:13.8.0
-        environment:
-          KVDB_BUCKET_ID: $KVDB_BUCKET_ID
-          KVDB_SECRET_KEY: $KVDB_SECRET_KEY
     steps:
       - checkout
-      - restore_cache:
-          keys: [backend-build]
+      - run:
+          name: Install awscli if for destroy-environment
+          command: |
+            sudo apt update 
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
       - run:
           name: Run migrations
           command: |
             cd backend
-            npm i
+            npm install
+            # Run and save the migration output
+            echo "starting migration"
             npm run migrations > migrations_dump.txt
-            cat migrations_dump.txt
       - run:
-          name: Sending migration status to kvdb
+          name: Send migration results to memstash
           command: |
-            if grep -q "has been executed successfully"  ./backend/migrations_dump.txt   
+            cd backend
+            if grep -q "has been executed successfully" migrations_dump.txt
             then
-              curl -k https://kvdb.io/${KVDB_BUCKET_ID}/migration_${CIRCLE_WORKFLOW_ID:0:7} \
-                -u "${KVDB_SECRET_KEY}:" \
-                -d "1"
+              echo "migration success"
+              curl --insecure https://kvdb.io/NqJ9WRq7WFXtV2q4E5NsZi/migration_${CIRCLE_WORKFLOW_ID:0:7} -d '1' 
+              # exit 0
             else
-              curl -k https://kvdb.io/${KVDB_BUCKET_ID}/migration_${CIRCLE_WORKFLOW_ID:0:7} \
-                -u "${KVDB_SECRET_KEY}:" \
-                -d "0"
+              echo "migration failure"
+              curl --insecure https://kvdb.io/NqJ9WRq7WFXtV2q4E5NsZi/migration_${CIRCLE_WORKFLOW_ID:0:7} -d '0'
+              # exit 1
             fi
+            # exit 1
       - destroy-environment:
           workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
 
