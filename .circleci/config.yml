@@ -1,24 +1,7 @@
 version: 2.1
-
+orbs: 
+  slack: circleci/slack@4.10.1
 commands:
-  dependencies:
-    steps:
-      - run:
-          name: Installing necessary packages
-          command: |
-            sudo apt update
-            sudo apt install -y tar gzip curl software-properties-common
-      - run:
-          name: Installing aws-cli
-          command: |
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            sudo ./aws/install
-      - run:
-          name: Installing ansible
-          command: |
-            sudo add-apt-repository --yes --update ppa:ansible/ansible
-            sudo apt install ansible
   destroy-environment:
     description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
     parameters:
@@ -26,15 +9,14 @@ commands:
         type: string
     steps:
       - run:
-          name: Destroying environments
+          name: Destroy environments
           when: on_fail
           command: |
-            echo "Destroying environment: <<parameters.workflow_id>> "
-            aws s3 rm "s3://udapeople-<< parameters.workflow_id >>" --recursive
-            aws cloudformation delete-stack \
-              --stack-name "udapeople-frontend-<< parameters.workflow_id >>"
-            aws cloudformation delete-stack \
-              --stack-name "udapeople-backend-<< parameters.workflow_id >>"
+            
+            aws cloudformation delete-stack --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}
+            aws s3 rm "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
+            aws cloudformation delete-stack --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}
+
   revert-migrations:
     description: Revert the last migration if successfully run in the current workflow.
     parameters:
@@ -42,8 +24,8 @@ commands:
         type: string
     steps:
       - run:
-          name: Reverting migrations
-          when: on_fail
+          name: Revert migrations
+          when: on_fail # Add when this will run
           command: |
             SUCCESS=$(curl -k "https://kvdb.io/${KVDB_BUCKET_ID}/migration_<<parameters.workflow_id>>" -u "${KVDB_SECRET_KEY}:")
             if (($SUCCESS == 1)); 
@@ -52,7 +34,7 @@ commands:
               npm i
               npm run migrations:revert
             fi
-
+            
 orbs:
   slack: circleci/slack@4.1
 
@@ -68,8 +50,7 @@ jobs:
           name: Build front-end
           command: |
             cd frontend
-            sudo npm cache clean -f
-            npm i
+            npm install
             npm run build
       - save_cache:
           paths: [frontend/node_modules]
@@ -85,10 +66,9 @@ jobs:
       - run:
           name: Back-end build
           command: |
-            cd backend
-            sudo npm cache clean -f
-            npm i
-            npm run build
+              cd backend
+              npm install
+              npm run build
       - save_cache:
           paths: [backend/node_modules]
           key: backend-build
@@ -101,12 +81,12 @@ jobs:
       - restore_cache:
           keys: [frontend-build]
       - run:
-          name: Test front-end
+          name: front-end test
           command: |
             cd frontend
-            npm i
+            npm install
             npm run test
-
+                
   test-backend:
     docker:
       - image: circleci/node:13.8.0
@@ -115,12 +95,12 @@ jobs:
       - restore_cache:
           keys: [backend-build]
       - run:
-          name: Test back-end
+          name: back-end test
           command: |
             cd backend
-            npm i
+            npm install
             npm run test
-
+            
   scan-frontend:
     docker:
       - image: circleci/node:13.8.0
@@ -129,10 +109,12 @@ jobs:
       - restore_cache:
           keys: [frontend-build]
       - run:
-          name: Scan front-end
+          name: front-end scan
           command: |
             cd frontend
-            npm i
+            npm install
+            # npm audit --audit-level=critical 
+            # npm audit fix --audit-level=critical
             npm audit fix --audit-level=critical --force
             npm audit fix --force
             # If the "npm audit fix" command above could not fix all critical vulnerabilities, try “npm audit fix --force” again
@@ -145,7 +127,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Scan back-end
+          name: back-end scan
           command: |
             cd backend
             npm i
@@ -162,7 +144,10 @@ jobs:
       - image: amazon/aws-cli
     steps:
       - checkout
-      - run: yum -y install tar gzip
+      - run: 
+          name: Install tar utility
+          command: |
+            yum install -y tar gzip
       - run:
           name: Ensure back-end infrastructure exists
           command: |
@@ -217,7 +202,7 @@ jobs:
       - checkout
       # Add ssh keys with fingerprint
       - add_ssh_keys:
-          fingerprints:
+          fingerprints: 
             - "8c:ac:3a:2f:4c:64:fc:13:35:c1:47:be:85:fa:b2:79"
       - attach_workspace:
           at: ~/
@@ -241,6 +226,9 @@ jobs:
   run-migrations:
     docker:
       - image: circleci/node:13.8.0
+      environment:
+          KVDB_BUCKET_ID: $KVDB_BUCKET_ID
+          KVDB_SECRET_KEY: $KVDB_SECRET_KEY
     steps:
       - checkout
       - run:
@@ -264,13 +252,13 @@ jobs:
             cd backend
             if grep -q "has been executed successfully" migrations_dump.txt
             then
-              echo "migration success"
-              curl --insecure https://kvdb.io/NqJ9WRq7WFXtV2q4E5NsZi/migration_${CIRCLE_WORKFLOW_ID:0:7} -d '1' 
-              # exit 0
+              curl -k https://kvdb.io/${KVDB_BUCKET_ID}/migration_${CIRCLE_WORKFLOW_ID:0:7} \
+                -u "${KVDB_SECRET_KEY}:" \
+                -d "1"
             else
-              echo "migration failure"
-              curl --insecure https://kvdb.io/NqJ9WRq7WFXtV2q4E5NsZi/migration_${CIRCLE_WORKFLOW_ID:0:7} -d '0'
-              # exit 1
+              curl -k https://kvdb.io/${KVDB_BUCKET_ID}/migration_${CIRCLE_WORKFLOW_ID:0:7} \
+                -u "${KVDB_SECRET_KEY}:" \
+                -d "0"
             fi
             # exit 1
       - destroy-environment:
@@ -288,7 +276,7 @@ jobs:
           command: |
             BACKEND_IP=$(aws ec2 describe-instances \
               --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --query 'Reservations[*].Instances[*].PublicIpAddress' \
+            --query 'Reservations[*].Instances[*].PublicIpAddress' \
               --output text)
             API_URL="http://${BACKEND_IP}:3030"
             echo "NODE_ENV=production" > frontend/.env
@@ -306,7 +294,7 @@ jobs:
           workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
       - revert-migrations:
           workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
-
+                    
   deploy-backend:
     docker:
       - image: python:3.11-rc-alpine
@@ -327,7 +315,7 @@ jobs:
           keys: [backend-build]
       # Add ssh keys with fingerprint
       - add_ssh_keys:
-          fingerprints:
+          fingerprints: 
             - "8c:ac:3a:2f:4c:64:fc:13:35:c1:47:be:85:fa:b2:79"
       - attach_workspace:
           at: ~/
@@ -374,7 +362,7 @@ jobs:
           command: |
             export BACKEND_IP=$(aws ec2 describe-instances \
               --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --query 'Reservations[*].Instances[*].PublicIpAddress' \
+            --query 'Reservations[*].Instances[*].PublicIpAddress' \
               --region us-east-1 \
               --output text )
             echo $BACKEND_IP
@@ -382,9 +370,9 @@ jobs:
             echo "${API_URL}"
             if curl "${API_URL}/api/status" | grep "ok"
             then
-                exit 0
+              return 0
             else
-                exit 1
+              return 1
             fi
       - run:
           name: Frontend smoke test.
@@ -393,9 +381,9 @@ jobs:
             echo ${URL} 
             if curl -s ${URL} | grep "Welcome"
             then
-              exit 0
+              return 0
             else
-              exit 1
+              return 1
             fi
       - destroy-environment:
           workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
@@ -421,7 +409,7 @@ jobs:
           command: |
             export OLD_WORKFLOW_ID=$(aws cloudformation \
               list-exports --query "Exports[?Name==\`WorkflowID\`].Value" \
-              --no-paginate --output text)
+            --no-paginate --output text)
             curl -k https://kvdb.io/${KVDB_BUCKET_ID}/OLD_WF_ID \
                 -u "${KVDB_SECRET_KEY}:" \
                 -d "$OLD_WORKFLOW_ID"
@@ -430,8 +418,8 @@ jobs:
           command: |
             aws cloudformation deploy --template-file .circleci/files/cloudfront.yml \
              --stack-name InitialStack \
-             --parameter-overrides WorkflowID="${CIRCLE_WORKFLOW_ID:0:7}" \
-             --tags project=udapeople
+            --parameter-overrides WorkflowID="${CIRCLE_WORKFLOW_ID:0:7}" \
+            --tags project=udapeople
              echo "Cloudfront distribution updated"
 
   cleanup:
@@ -460,14 +448,14 @@ jobs:
 
             # Fetch the stack names          
             export STACKS=($(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
-                    --stack-status-filter CREATE_COMPLETE --no-paginate --output text)) 
-            echo Stack names: "${STACKS[@]}"
+              --stack-status-filter CREATE_COMPLETE --no-paginate --output text)) 
+            echo Stack names: "${STACKS[@]}"  
 
             # Remove old stacks and files
             if [[ "${STACKS[@]}" =~ "${OldWorkflowID}" ]]
             then
               aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive
-              aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}"
+              aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}" 
               aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}"
             fi
 
