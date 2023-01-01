@@ -226,9 +226,9 @@ jobs:
   run-migrations:
     docker:
       - image: circleci/node:13.8.0
-      environment:
-          KVDB_BUCKET_ID: $KVDB_BUCKET_ID
-          KVDB_SECRET_KEY: $KVDB_SECRET_KEY
+        environment:
+            KVDB_BUCKET_ID: $KVDB_BUCKET_ID
+            KVDB_SECRET_KEY: $KVDB_SECRET_KEY
     steps:
       - checkout
       - run:
