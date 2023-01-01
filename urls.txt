@@ -1,5 +1,5 @@
 URL01: https://github.com/thanhntphys/cdond-c3-projectstarter
-URL02: http://udapeople-8f85a90.s3-website-us-east-1.amazonaws.com
+URL02: http://udapeople-921dfee.s3-website-us-east-1.amazonaws.com
 
 Cloudfront endpoint: https://d1g86kyhvmo2sq.cloudfront.net
 Prometheus endpoint: http://ec2-3-87-64-148.compute-1.amazonaws.com:9090/targets
